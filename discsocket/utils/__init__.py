@@ -1,3 +1,5 @@
+from .media import return_cdn_avatar
+
 DISPATCH = 0
 HEARTBEAT = 1
 IDENTIFIY = 2

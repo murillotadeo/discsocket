@@ -12,7 +12,7 @@ setup(
     project_urls={
         "Issue tracker": "https://github.com/murillotadeo/discsocket/issues"
     },
-    version="0.1.0",
+    version="0.1.2",
     packages=['discsocket', 'discsocket.utils', 'discsocket.models'],
     license="MIT",
     description="Python framework for Discord interactions.",
@@ -26,5 +26,6 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9'
-    ]
+    ],
+    
 )

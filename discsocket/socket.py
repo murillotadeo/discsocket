@@ -16,6 +16,7 @@ from .commands import Command
 from .components import Component
 from .events import Event
 from .models.context import Context
+from .models.user import User
 
 
 class MaintainSocketAlive(threading.Thread):
@@ -163,7 +164,7 @@ class Socket:
         self.headers = {"Authorization": f"Bot {self.__token}"}
         self.session = aiohttp.ClientSession()
         # Make user
-        self.user = None
+        self.user = User(await (await self.session.get('https://discord.com/api/v8/users/@me', headers=self.headers)).json())
 
     async def connect(self):
         await self.before_login()
