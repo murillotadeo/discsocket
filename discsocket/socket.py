@@ -95,11 +95,33 @@ class Socket:
         self.events = EventContainer()
         self.thread_id = threading.get_ident()
         self.connection = None
+        self.unchecked_decorators = {"event": [], "command": [], "component": []}
 
     def add_component_listener(self, ucid, func):
         if not inspect.iscoroutinefunction(func):
             raise TypeError("Component functions must be a coroutine")
         self.events.component(Component(ucid, func))
+
+    def event(self, name):
+        def predicate(func):
+            if not inspect.iscoroutinefunction(func):
+                raise TypeError("Event function must be coroutine")
+            self.unchecked_decorators['event'].append(Event(name, func))
+        return predicate
+    
+    def command(self, name, _type):
+        def predicate(func):
+            if not inspect.iscoroutinefunction(func):
+                raise TypeError("Command functions must be coroutine")
+            self.unchecked_decorators['command'].append(Command(name, func, _type))
+        return predicate
+
+    def component(self, ucid):
+        def predicate(func):
+            if not inspect.iscoroutinefunction(func):
+                raise TypeError("Component function must be coroutine")
+            self.unchecked_decorators['component'].append(Component(ucid, func))
+        return predicate
 
     async def send_heartbeat(self, payload):
         await self.connection.send_json(payload)
@@ -198,6 +220,7 @@ class Socket:
                         await self.run_ready_event()
                 except Exception:
                     traceback.print_exc()
+
     def add_extension(self, extension_path):
         extension = importlib.import_module(extension_path)
         for name in dir(extension):
@@ -211,6 +234,17 @@ class Socket:
                 self.events.event(attr)
                     
     def run(self, token: str):
+
+        for _type in ['event', 'command', 'component']:
+            if len(self.unchecked_decorators[_type]) > 0:
+                for listener in self.unchecked_decorators[_type]:
+                    if isinstance(listener, Command):
+                        self.events.command(listener)
+                    elif isinstance(listener, Event):
+                        self.events.event(listener)
+                    elif isinstance(listener, Component):
+                        self.events.component(listener)
+
         self.__token = token
         self.loop.create_task(self.connect())
         self.loop.run_forever()

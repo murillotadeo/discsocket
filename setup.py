@@ -17,7 +17,7 @@ setup(
     license="MIT",
     description="Python framework for Discord interactions.",
     long_description=readme,
-    long_description_content_type="text/html",
+    long_description_content_type="text/markdown",
     include_package_data=True,
     install_requires=['aiohttp>=3.6.0,<3.8.0'],
     python_require=">=3.8.0",
