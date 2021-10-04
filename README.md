@@ -10,7 +10,7 @@ This is the code needed for a minimal application with an on_ready event
 ```py
 import discsocket
 
-client = discsocket.Client()
+client = discsocket.Socket()
 
 # Event names go in the event decorator
 # The function can be named whatever
