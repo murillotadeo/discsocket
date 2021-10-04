@@ -35,5 +35,5 @@ Lets pretend that the file is called boop.py and is in a folder called extension
 
 ```py
 # It would be loaded into the client like this
-socket.add_extension('extensions.boop')
+client.add_extension('extensions.boop')
 ```
