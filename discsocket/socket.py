@@ -149,13 +149,7 @@ class Socket:
         coro = self.events.components.get(context.ucid, None)
         
         if coro is None:
-            try:
-                maybe_timeout = context.ucid in self.events.timed_out
-                if maybe_timeout:
-                    self.events.timed_out.remove(context.ucid)
-                    return await context.callback("This component timed out, try running the command again")
-            except KeyError:
-                raise ValueError(f"No component with unique id {context.ucid} was found.")
+            raise ValueError(f"No component with unique id {context.ucid} was found.")
         try:
             await coro(context)
         except Exception:
