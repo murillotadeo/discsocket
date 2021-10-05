@@ -19,7 +19,7 @@ class Context:
         if injected is not None:
             self.type = injected['type']
 
-    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], component_timeout: float = None):
+    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = []):
         built_action_rows = []
         for action_row in components:
             if isinstance(action_row, ActionRow):
@@ -52,8 +52,6 @@ class Context:
 
         async with self.socket.session.post(self.callback_url, json=message, headers=self.socket.headers) as maybe_send:
             self.message = Message(self.socket, await (await self.socket.session.get(f"https://discord.com/api/v8/webhooks/{self.data['application_id']}/{self.token}/messages/@original", headers=self.socket.headers)).json())
-            if component_timeout is not None:
-                await self.message.component_timeout(component_timeout)
             if maybe_send.status != 204:
                 print(await maybe_send.json())
 
