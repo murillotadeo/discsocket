@@ -13,7 +13,7 @@ setup(
         "Issue tracker": "https://github.com/murillotadeo/discsocket/issues",
         "Source": "https://github.com/murillotadeo/discsocket"
     },
-    version="0.1.3",
+    version="1.0.0",
     packages=['discsocket', 'discsocket.utils', 'discsocket.models'],
     license="MIT",
     description="Python framework for Discord interactions.",
