@@ -2,7 +2,7 @@ from .media import return_cdn_avatar
 
 DISPATCH = 0
 HEARTBEAT = 1
-IDENTIFIY = 2
+IDENTIFY = 2
 RESUME = 6
 RECONNECT = 7
 INVALID_SESSION = 9

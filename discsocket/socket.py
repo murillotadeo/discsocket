@@ -15,7 +15,7 @@ from .listener import EventContainer
 from .commands import Command
 from .components import Component
 from .events import Event
-from .models.context import Context
+from .models.context import ButtonContext, Context, SelectMenuContext
 from .models.user import User
 
 
@@ -128,27 +128,35 @@ class Socket:
         await self.connection.send_json(payload)
 
     async def run_command(self, context):
-        coro = None
-        if context.type == utils.SLASH:
-            coro = self.events.commands.get(context.command, None)
-        elif context.type == utils.USER:
-            coro = self.events.user_commands.get(context.command, None)
-        elif context.type == utils.MESSAGE:
-            coro = self.events.message_commands.get(context.command, None)
+        try: 
+            coro = None
+            if context.type == utils.SLASH:
+                coro = self.events.commands.get(context.command, None)
+            elif context.type == utils.USER:
+                coro = self.events.user_commands.get(context.command, None)
+            elif context.type == utils.MESSAGE:
+                coro = self.events.message_commands.get(context.command, None)
 
-        if coro is None:
-            raise ValueError(f"No command with name {context.name} was found.")
+            if coro is None:
+                raise ValueError(f"No command with name {context.name} was found.")
         
-        await coro(context)
+            await coro(context)
+        except Exception:
+            traceback.print_exc()
 
     async def run_component_command(self, context):
         coro = None
         coro = self.events.components.get(context.ucid, None)
         
         if coro is None:
-            raise ValueError(f"No component with unique id {context.ucid} was found.")
+            try:
+                maybe_timeout = context.ucid in self.events.timed_out
+                if maybe_timeout:
+                    self.events.timed_out.remove(context.ucid)
+                    return await context.callback("This component timed out, try running the command again")
+            except KeyError:
+                raise ValueError(f"No component with unique id {context.ucid} was found.")
         try:
-            print(coro)
             await coro(context)
         except Exception:
             traceback.print_exc()
@@ -172,24 +180,24 @@ class Socket:
             self.connection = connection
             async for message in connection:
                 msg = json.loads(message.data)
-                op, t , d = msg['op'], msg['t'], msg['d']
+                op, t, d = msg['op'], msg['t'], msg['d']
 
                 if self.alive_handler:
                     self.alive_handler.tick()
 
                 try:    
 
-                    if op == utils.HELLO: # Discord's 'Hello' payload
+                    if op == utils.HELLO:  # Discord's 'Hello' payload
                         await connection.send_json(
                             {
-                                "op": utils.IDENTIFIY,
+                                "op": utils.IDENTIFY,
                                 "d": {
                                     "token": self.__token,
                                     "intents": 513,
                                     "properties": {
                                         "$os": "Windows",
-                                        "$browser": "discsocket 0.0.1",
-                                        "$device": "discsocket 0.0.1"
+                                        "$browser": "discsocket 1.0.0",
+                                        "$device": "discsocket 1.0.0"
                                     },
                                     "compress": False,
                                     "large_threshold": 250
@@ -204,18 +212,24 @@ class Socket:
                         if self.alive_handler:
                             self.alive_handler.ack()
                 
-                    elif op ==utils.HEARTBEAT:
+                    elif op == utils.HEARTBEAT:
                         if self.alive_handler:
                             connection.send_json(self.alive_handler.payload())
 
                     elif t == 'INTERACTION_CREATE':
                         if d['type'] == 2: # Slash command
-                            # inject type
-                            d['injected'] = {"type": utils.SLASH}
-                            model = Context(self, d)
-                            await self.run_command(model)
-                        elif d['type'] == 3: # Component interaction
-                            model = Context(self, d)
+                            try:
+                                # inject type
+                                d['injected'] = {"type": utils.SLASH}
+                                model = Context(self, d)
+                                await self.run_command(model)
+                            except Exception:
+                                traceback.print_exc()
+                        elif d['type'] == 3:  # Component interaction
+                            if d['data']['component_type'] == 3:
+                                model = SelectMenuContext(self, d)
+                            elif d['data']['component_type'] == 2:
+                                model = ButtonContext(self, d)
                             await self.run_component_command(model)
                     elif t == 'READY':
                         await self.run_ready_event()
