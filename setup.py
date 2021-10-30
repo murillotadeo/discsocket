@@ -1,4 +1,5 @@
 from setuptools import setup
+import setuptools
 
 readme = ''
 with open('README.md') as f:
@@ -13,8 +14,9 @@ setup(
         "Issue tracker": "https://github.com/murillotadeo/discsocket/issues",
         "Source": "https://github.com/murillotadeo/discsocket"
     },
-    version="1.0.0",
-    packages=['discsocket', 'discsocket.utils', 'discsocket.models'],
+    version="1.0.4",
+    package_dir={'': 'src'},
+    packages=setuptools.find_packages('src'),
     license="MIT",
     description="Python framework for Discord interactions.",
     long_description=readme,

@@ -10,15 +10,15 @@ This is the code needed for a minimal application with an on_ready event
 ```py
 import discsocket
 
-client = discsocket.Socket()
+socket = discsocket.Socket()
 
 # Event names go in the event decorator
 # The function can be named whatever
-@socket.event('on_ready')
+@socket.event('ready')
 async def ready():
-  print(f"{client.user.username} is connected")
+  print(f"{socket.user.username} is connected")
  
-client.run('token')
+socket.run('token')
 ```
 # Extensions (Cogs)
 If you're familiar with discord.py then you know about cogs. However in discsockets extensions don't inherit from a cog class.
@@ -35,5 +35,5 @@ Lets pretend that the file is called boop.py and is in a folder called extension
 
 ```py
 # It would be loaded into the client like this
-client.add_extension('extensions.boop')
+socket.add_extension('extensions.boop')
 ```
