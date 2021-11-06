@@ -44,12 +44,7 @@ class Context:
                     if isinstance(component, Button):
                         new_ar['components'].append(component.build())
                     elif isinstance(component, SelectMenu):
-                        select_options = []
-                        built_select = component.build()
-                        for option in built_select['options']:
-                            if isinstance(option, SelectMenuOption):
-                                select_options.append(option.build())
-                        new_ar['components'].append({"type": 3, "custom_id": built_select['custom_id'], "options": select_options})
+                        new_ar['components'].append(component.build())
                 fully_built.append(new_ar)
             message['data']['components'] = fully_built
 
@@ -65,6 +60,7 @@ class SelectMenuContext:
     def __init__(self, socket, data):
         self.socket = socket
         self.raw = data
+        self.ucid = self.raw['data']['custom_id']
         self.values = self.raw['data']['values']
         self.used = User(self.raw['member']['user'])
         self.invoked = User(data['message']['interaction']['user'])

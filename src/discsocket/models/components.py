@@ -9,7 +9,7 @@ class ActionRow:
 
 class SelectMenu:
     def __init__(self, custom_id, options):
-        self.base = {"type": 3, "custom_id": custom_id, "options": options}
+        self.base = {"type": 3, "custom_id": custom_id, "options": [op.build() for op in options if isinstance(op, SelectMenuOption)]}
 
     def build(self):
         return self.base
