@@ -8,11 +8,18 @@ RESUME = 6
 RECONNECT = 7
 INVALID_SESSION = 9
 HELLO = 10
-HEARTBEAT_ACK = 11  
+HEARTBEAT_ACK = 11
 
 # Set application command types
 SLASH = 1
 USER = 2
 MESSAGE = 3
 
-__version__ = '1.0.4'
+# Set message response types
+CHANNEL_WITH_SOURCE = 4
+DEFERRED_CHANNEL_WITH_SOURCE = 5
+DEFERRED_UPDATE_MESSAGE = 6
+UPDATE_MESSAGE = 7
+AUTOCOMPLETE_RESULT = 8
+
+__version__ = '1.0.8'

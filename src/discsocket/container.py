@@ -36,4 +36,4 @@ class Container:
         """
         Add a component to the container.
         """
-        self.components[component.ucid] = (component.func, component.timeout, component.parent_context)
+        self.components[component.ucid] = (component.func, component.timeout, component.parent_context, component.single_use)

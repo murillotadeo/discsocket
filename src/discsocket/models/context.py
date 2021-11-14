@@ -1,6 +1,8 @@
 from .components import ActionRow, Button, SelectMenu, SelectMenuOption
 from .user import User
 from .message import Message
+from .. import utils
+from ..embed import Embed
 
 
 class Context:
@@ -11,6 +13,7 @@ class Context:
 
         self.socket = socket
         self.raw = data
+        self.resolved = self.raw['data'].get('resolved', None)
         self.command = self.raw['data'].get('name', None)
         self.command_id = self.raw['data'].get('id', None)
         self.channel_id = self.raw.get('channel_id', None)
@@ -19,12 +22,12 @@ class Context:
         self.type = self.raw.get('type', None)
         self.callback_url = f"https://discord.com/api/v8/interactions/{self.id}/{self.token}/callback"
 
-    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False):
+    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False, type: int = utils.CHANNEL_WITH_SOURCE):
         message = {
-            "type": 4,
+            "type": type,
             "data": {
                 "content": content,
-                "embeds": embeds,
+                "embeds": [e.build() for e in embeds if isinstance(e, Embed)],
                 "allowed_mentions": mentions,
             }
         }
@@ -66,12 +69,12 @@ class SelectMenuContext:
         self.invoked = User(data['message']['interaction']['user'])
         self.callback_url = f"https://discord.com/api/v8/interactions/{self.raw['id']}/{self.raw['token']}/callback"
 
-    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False):
+    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False, type: int = utils.CHANNEL_WITH_SOURCE):
         message = {
-            "type": 4,
+            "type": type,
             "data": {
                 "content": content,
-                "embeds": embeds,
+                "embeds": [e.build() for e in embeds if isinstance(e, Embed)],
                 "allowed_mentions": mentions,
             }
         }
@@ -117,12 +120,12 @@ class ButtonContext:
         self.used = User(data['member']['user'])
         self.callback_url = f"https://discord.com/api/v8/interactions/{self.raw['id']}/{self.raw['token']}/callback"
 
-    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False):
+    async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False, type: int = utils.CHANNEL_WITH_SOURCE):
         message = {
-            "type": 4,
+            "type": type,
             "data": {
                 "content": content,
-                "embeds": embeds,
+                "embeds": [e.build() for e in embeds if isinstance(e, Embed)],
                 "allowed_mentions": mentions,
             }
         }

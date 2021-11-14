@@ -78,10 +78,10 @@ class MaintainSocketAlive(threading.Thread):
 
     def stop(self):
         self._stop_event.set()
-    
+
     def tick(self):
         self._last_recv = time.perf_counter()
-    
+
     def ack(self):
         ack_time = time.perf_counter()
         self._last_ack = ack_time
@@ -156,7 +156,7 @@ class Socket(object):
     def command(self, name: str, _type: int):
         """
         Decorator to add a command to listen for.
-        
+
         ```
         import discsocket
         socket = discsocket.Socket()
@@ -185,7 +185,7 @@ class Socket(object):
                 coro = self.container.commands.get(context.command, None)
             elif context.type == utils.utils.MESSAGE:
                 coro = self.container.message_commands.get(context.command, None)
-            
+
             if coro is None:
                 raise ValueError(f"Command {context.command} not found.")
             await coro(context)
@@ -199,7 +199,7 @@ class Socket(object):
             raise ValueError(f"Component {context.ucid} not found.")
 
         context.parent_context = component[2]
-        
+
         if component[1] is not None:
             epoch = datetime.fromtimestamp(0)
             time_difference = (datetime.utcnow() - epoch).total_seconds()
@@ -209,11 +209,13 @@ class Socket(object):
                 del self.container.components[context.ucid]
                 return
 
+
         coro = component[0]
 
         try:
             await coro(context)
-            await context.parent_context.message.disable_component(context.ucid)
+            if component[3]:
+                await context.parent_context.message.disable_component(context.ucid)
             del self.container.components[context.ucid]
         except Exception:
             traceback.print_exc()
@@ -270,7 +272,7 @@ class Socket(object):
                                 await self.__gateway.send_json(self.__handler.payload())
                         except Exception:
                             traceback.print_exc()
-                    
+
                     elif op == utils.HEARTBEAT_ACK:
                         if self.__handler:
                             self.__handler.ack()
@@ -285,7 +287,7 @@ class Socket(object):
                                 context = SelectMenuContext(self, d)
                             elif d['data']['component_type'] == 2: # Button was used
                                 context = ButtonContext(self, d)
-                            
+
                             await self.run_component_command(context)
                     else:
                         if t is not None:
@@ -324,7 +326,7 @@ class Socket(object):
         ```
         import pathlib
         import discsocket
-        
+
         socket = discsocket.Socket()
 
         for ext in pathlib.Path('name_of_folder_with_extensions').glob('*.py'):

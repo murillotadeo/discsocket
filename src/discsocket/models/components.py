@@ -3,7 +3,7 @@
 class ActionRow:
     def __init__(self, components):
         self.base = {"type": 1, "components": components}
-    
+
     def build(self):
         return self.base
 
@@ -29,8 +29,9 @@ class ButtonStyle:
     LINK = 5
 
 class Button:
-    def __init__(self, custom_id,  style: int = ButtonStyle.PRIMARY, label: str = '', url: str = None, emoji: dict = None, disabled: bool = False, timeout: float = 0.0): 
+    def __init__(self, custom_id,  style: int = ButtonStyle.PRIMARY, label: str = '', url: str = None, emoji: dict = None, disabled: bool = False, timeout: float = 0.0, single_use: bool = False):
         self.timeout = timeout
+        self.single_use = single_use
         self.base = {"type": 2, "style": style, "label": label, "custom_id": custom_id, "disabled": disabled}
 
         if emoji is not None:
@@ -44,4 +45,5 @@ class Button:
     def __raw__(self):
         f = self.base
         f["timeout"] = self.timeout
+        f['single_use'] = self.single_use
         return f

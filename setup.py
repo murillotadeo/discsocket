@@ -14,7 +14,7 @@ setup(
         "Issue tracker": "https://github.com/murillotadeo/discsocket/issues",
         "Source": "https://github.com/murillotadeo/discsocket"
     },
-    version="1.0.4",
+    version="1.0.8",
     package_dir={'': 'src'},
     packages=setuptools.find_packages('src'),
     license="MIT",
@@ -29,6 +29,5 @@ setup(
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9'
-    ],
-    
+    ]
 )
