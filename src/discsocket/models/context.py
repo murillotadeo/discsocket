@@ -4,7 +4,6 @@ from .message import Message
 from .. import utils
 from ..embed import Embed
 
-
 class Context:
     def __init__(self, socket, data):
         injected = data.get('injected', None)
@@ -20,6 +19,7 @@ class Context:
         self.id = self.raw.get('id', None)
         self.token = self.raw.get('token', None)
         self.type = self.raw.get('type', None)
+        self.invoker = User(self.raw['member']['user'])
         self.callback_url = f"https://discord.com/api/v8/interactions/{self.id}/{self.token}/callback"
 
     async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False, type: int = utils.CHANNEL_WITH_SOURCE):
@@ -39,7 +39,7 @@ class Context:
             for action_row in components:
                 if isinstance(action_row, ActionRow):
                     built_action_rows.append(action_row.build())
-        
+
             fully_built = []
             for bar in built_action_rows:
                 new_ar = {"type": 1, "components": []}
@@ -66,7 +66,7 @@ class SelectMenuContext:
         self.ucid = self.raw['data']['custom_id']
         self.values = self.raw['data']['values']
         self.used = User(self.raw['member']['user'])
-        self.invoked = User(data['message']['interaction']['user'])
+        self.invoker = User(data['message']['interaction']['user'])
         self.callback_url = f"https://discord.com/api/v8/interactions/{self.raw['id']}/{self.raw['token']}/callback"
 
     async def callback(self, content: str = '', embeds: list = [], components: list = [], mentions: list = [], ephemeral: bool= False, type: int = utils.CHANNEL_WITH_SOURCE):
@@ -86,7 +86,7 @@ class SelectMenuContext:
             for action_row in components:
                 if isinstance(action_row, ActionRow):
                     built_action_rows.append(action_row.build())
-        
+
             fully_built = []
             for bar in built_action_rows:
                 new_ar = {"type": 1, "components": []}
@@ -116,7 +116,7 @@ class ButtonContext:
         self.socket = socket
         self.raw = data
         self.ucid = self.raw['data']['custom_id']
-        self.invoked = User(data['message']['interaction']['user'])
+        self.invoker = User(data['message']['interaction']['user'])
         self.used = User(data['member']['user'])
         self.callback_url = f"https://discord.com/api/v8/interactions/{self.raw['id']}/{self.raw['token']}/callback"
 
@@ -137,7 +137,7 @@ class ButtonContext:
             for action_row in components:
                 if isinstance(action_row, ActionRow):
                     built_action_rows.append(action_row.build())
-        
+
             fully_built = []
             for bar in built_action_rows:
                 new_ar = {"type": 1, "components": []}

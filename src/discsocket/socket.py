@@ -122,14 +122,14 @@ class Socket(object):
         """
         await self.__gateway.send_json(payload)
 
-    def add_component_listener(self, parent_context, ucid, func, timeout: float = 0.0):
+    def add_component_listener(self, parent_context, ucid, func, timeout: float = 0.0, single_use: bool = False):
         """
         Adds a component listener to the current socket container.
         """
 
         if not inspect.iscoroutinefunction(func):
             raise TypeError("Component function must be a coroutine function.")
-        self.container.add_component(Component(ucid, func, parent_context, timeout))
+        self.container.add_component(Component(ucid, func, parent_context, timeout, single_use))
 
 # ------- Decorators -------
 
@@ -208,7 +208,6 @@ class Socket(object):
                 await context.parent_context.message.disable_component(context.ucid)
                 del self.container.components[context.ucid]
                 return
-
 
         coro = component[0]
 

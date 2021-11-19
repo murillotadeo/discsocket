@@ -16,7 +16,7 @@ class Avatars(Enum):
 
 def return_cdn_avatar(data):
     if data['avatar'] is not None:
-        animated = data.startswith('a_')
+        animated = data['avatar'].startswith('a_')
         suffix = 'gif' if animated else 'png'
         return f'https://cdn.discordapp.com/avatars/{data["id"]}/{data["avatar"]}.{suffix}?size=2024'
     else:

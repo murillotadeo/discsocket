@@ -14,10 +14,11 @@ class Command:
         self.type = _type
 
 class Component:
-    def __init__(self, ucid, func: Callable, parent_context, timeout: float = 0.0):
+    def __init__(self, ucid, func: Callable, parent_context, timeout: float = 0.0, single_use: bool = False):
         self.ucid = ucid
         self.func = func
         self.parent_context = parent_context
+        self.single_use = single_use
         
         if timeout > 0.0:
             self.timeout = datetime.fromtimestamp((datetime.utcnow() - datetime.fromtimestamp(0)).total_seconds() + timeout)
