@@ -1,25 +1,14 @@
-"""."""
-
 class ActionRow:
-    def __init__(self, components):
-        self.base = {"type": 1, "components": components}
+    def __init__(self, components: list):
+        self.base = {"type": 1, "components": [component.base for component in components]}
 
-    def build(self):
-        return self.base
+class SelectMenuOption:
+    def __init__(self, label: str, value, description: str ='', emoji: dict = {}):
+        self.base = {"label": label, "description": description, "value": value, "emoji":emoji}
 
 class SelectMenu:
     def __init__(self, custom_id, options):
-        self.base = {"type": 3, "custom_id": custom_id, "options": [op.build() for op in options if isinstance(op, SelectMenuOption)]}
-
-    def build(self):
-        return self.base
-
-class SelectMenuOption:
-    def __init__(self, label: str, description: str, value: str, emoji: dict = {}):
-        self.base = {"label": label, "description": description, "value": value, "emoji": emoji}
-
-    def build(self):
-        return self.base
+        self.base = {"type": 3, "custom_id": custom_id, "options": [opt.base for opt in options if isinstance(opt, SelectMenuOption)]}
 
 class ButtonStyle:
     PRIMARY = 1
@@ -29,21 +18,17 @@ class ButtonStyle:
     LINK = 5
 
 class Button:
-    def __init__(self, custom_id,  style: int = ButtonStyle.PRIMARY, label: str = '', url: str = None, emoji: dict = None, disabled: bool = False, timeout: float = 0.0, single_use: bool = False):
-        self.timeout = timeout
-        self.single_use = single_use
+    def __init__(self, custom_id, style: int = ButtonStyle.PRIMARY, label: str = '', url: str = None, emoji: dict = None, disabled: bool = False, timeout: float = 0.0, is_single_use: bool = False):
         self.base = {"type": 2, "style": style, "label": label, "custom_id": custom_id, "disabled": disabled}
+        self.timeout = timeout
+        self.singe_use = is_single_use
 
         if emoji is not None:
-            self.base["emoji"] = emoji
+            self.base['emoji'] = emoji
         if style == ButtonStyle.LINK and url is not None:
-            self.base["url"] = url
+            self.base['url'] = url
 
-    def build(self):
-        return self.base
-
-    def __raw__(self):
-        f = self.base
-        f["timeout"] = self.timeout
-        f['single_use'] = self.single_use
-        return f
+    def __raw_data__(self):
+        raw = self.base
+        raw['timeout'] = self.timeout
+        raw['single_use'] = self.singe_use

@@ -1,6 +1,6 @@
 import inspect
 from typing import Callable
-from datetime import datetime
+import asyncio
 
 class Event:
     def __init__(self, name: str, func: Callable):
@@ -14,27 +14,27 @@ class Command:
         self.type = _type
 
 class Component:
-    def __init__(self, ucid, func: Callable, parent_context, timeout: float = 0.0, single_use: bool = False):
-        self.ucid = ucid
+    def __init__(self, custom_id, future, func: Callable, timeout: float = 0.0, is_single_use: bool = False):
+        self.custom_id = custom_id
         self.func = func
-        self.parent_context = parent_context
-        self.single_use = single_use
-        
-        if timeout > 0.0:
-            self.timeout = datetime.fromtimestamp((datetime.utcnow() - datetime.fromtimestamp(0)).total_seconds() + timeout)
-        else:
-            self.timeout = None
-    
+        self.future = future
+        self.timeout = timeout
+        self.is_single_use = is_single_use
+
+
 def event(name):
-    def predicate(func):
+    def wrapper(func):
         if not inspect.iscoroutinefunction(func):
-            raise TypeError("Event decorator can only be applied to coroutine functions")
+            raise TypeError('Event decorator can only be applied to coroutine functions')
         return Event(name, func)
-    return predicate
+    return wrapper
 
 def command(name, _type):
-    def predicate(func):
+    def wrapper(func):
         if not inspect.iscoroutinefunction(func):
-            raise TypeError("Command decorator can only be applied to coroutine functions")
+            raise TypeError('Command decorator can only be applied to coroutine functions')
+        print(type(func))
+        print(func)
+        print(func.__get__)
         return Command(name, func, _type)
-    return predicate
+    return wrapper

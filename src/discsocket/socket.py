@@ -1,26 +1,23 @@
-"""
-
-"""
-
-
+from concurrent.futures import __annotations__
 import concurrent.futures
-from typing import Optional
-from datetime import datetime
-import aiohttp
 import asyncio
-import json
-import importlib
-import threading
-import time
+import aiohttp
+import inspect
 import sys
 import traceback
-import inspect
+import threading
+import importlib
+import time
+from typing import Optional
+import json
 
+from .httpClient import HTTPClient
 from . import utils
-from .container import Container
-from .decorators import Command, Component, Event
+from .decorators import Command, Event
+from .models.context import BaseContext, ButtonContext, SelectMenuContext
 from .models.user import User
-from .models.context import Context, ButtonContext, SelectMenuContext
+from .container import Container
+from .errors import CommandNotFound, ComponentNotFound
 
 class MaintainSocketAlive(threading.Thread):
     def __init__(self, *args, **kwargs):
@@ -88,59 +85,27 @@ class MaintainSocketAlive(threading.Thread):
         self.latency = ack_time - self._last_send
 
 
-class Socket(object):
-    """
-    Connects to the Discord websocket.
-
-    Example:
-    ```
-    import discsocket
-    socket = discsocket.Socket()
-
-    @socket.event('ready')
-    async def ready_listener():
-        print(f"{socket.user.username} is online")
-
-    if __name__ == '__main__':
-        socket.run('token')
-    ```
-    """
-
-    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None):
-        self.loop: asyncio.AbstractEventLoop = asyncio.get_event_loop() if loop is None else loop
+class Socket:
+    def __init__(self, loop: Optional[asyncio.AbstractEventLoop] = None, gateway_version: int = 8) -> None:
+        self.loop: asyncio.AbstractEventLoop = loop if loop is not None else asyncio.get_event_loop()
         self.session: aiohttp.BaseConnector = None
         self.headers = {}
-        self.container = Container()
-        self.thread_id = threading.get_ident()
+        self.thread_id = None
         self.unchecked_decorators = {"events": [], "commands": []}
+        self._closed = False
+        self.__container = Container()
         self.__handler = None
         self.__gateway = None
-
-    async def send_heartbeat(self, payload: dict):
-        """
-        Sends a heartbeat to the Discord websocket.
-        """
-        await self.__gateway.send_json(payload)
-
-    def add_component_listener(self, parent_context, ucid, func, timeout: float = 0.0, single_use: bool = False):
-        """
-        Adds a component listener to the current socket container.
-        """
-
-        if not inspect.iscoroutinefunction(func):
-            raise TypeError("Component function must be a coroutine function.")
-        self.container.add_component(Component(ucid, func, parent_context, timeout, single_use))
-
-# ------- Decorators -------
+        self.__token = None
+        self.__http: HTTPClient = None
+        self.__gateway_version = gateway_version
 
     def event(self, name: str):
         """
         Decorator to add an event to listen for.
-
         ```
         import discsocket
         socket = discsocket.Socket()
-
         @socket.event('ready')
         async def ready_listener():
             print(f"{socket.user.username} is online")
@@ -156,11 +121,9 @@ class Socket(object):
     def command(self, name: str, _type: int):
         """
         Decorator to add a command to listen for.
-
         ```
         import discsocket
         socket = discsocket.Socket()
-
         @socket.command('ping', discsocket.utils.SLASH)
         async def ping(ctx):
             await ctx.callback('pong')
@@ -173,78 +136,95 @@ class Socket(object):
             self.unchecked_decorators["commands"].append(Command(name, func, _type))
         return predicate
 
-# ------- Command Handlers -------
+    async def send_heartbeat(self, payload):
+        await self.__gateway.send_json(payload)
 
-    async def run_command(self, context):
-        """Runs a command"""
+    async  def _before_connect(self):
+        self.headers = {"Authorization": "Bot {}".format(self.__token)}
+        self.session = aiohttp.ClientSession()
+        self.__http = HTTPClient(self.session, self.headers, self.__gateway_version)
+        self.user = User(await self.__http.make_request('GET', 'users/@me'))
+
+    async def on_command_error(self, command, exception):
+        print(f"Exception in command {command}:")
+        raise exception
+
+    async def on_error(self, meth_name, exc):
+        print(f"Exception in {meth_name}:")
+        raise exc
+
+    async def _run_coro(self, coro, context=None):
         try:
-            coro = None
-            if context.type == utils.SLASH:
-                coro = self.container.commands.get(context.command, None)
-            elif context.type == utils.USER:
-                coro = self.container.commands.get(context.command, None)
-            elif context.type == utils.utils.MESSAGE:
-                coro = self.container.message_commands.get(context.command, None)
+            if context is None:
+                await coro()
+            else:
+                await coro(context)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            try:
+                if type(context) != dict:
+                    name = context.command if context.command is not None else context.unique_id
+                else:
+                    name = context['event_name']
+                await self.on_error(name,e)
+            except asyncio.CancelledError:
+                pass    
 
-            if coro is None:
-                raise ValueError(f"Command {context.command} not found.")
-            await coro(context)
-        except Exception:
-            traceback.print_exc()
+    def _schedule_task(self, coro, context=None):
+        if context is None:
+            wrapped = self._run_coro(coro)
+        else:
+            wrapped = self._run_coro(coro, context)
+        return asyncio.create_task(wrapped)
+
+    def dispatch_command(self, data):
+        context = BaseContext(self.__http, data)
+        match context.type:
+            case utils.SLASH:
+                coro = self.__container.commands.get(context.command, None)
+            case utils.MESSAGE:
+                coro = self.__container.message_commands.get(context.command, None)
+            case utils.USER:
+                coro = self.__container.user_commands.get(context.command, None)
+
+        if coro is None:
+            asyncio.create_task(self.on_command_error(context.command, CommandNotFound("Command {} was not found".format(context.command))))
+
+        return self._schedule_task(coro.func, context)
+
+    def dispatch_component(self, data):
+        match data['data']['component_type']:
+            case 2:
+                context = ButtonContext(self.__http, data)
+            case 3:
+                context = SelectMenuContext(self.__http, data)
+
+        component = self.__container.components.get(context.unique_id, None)
+        if component is None:
+            print('.')
+            return self._schedule_task(self.on_command_error(context.unique_id, ComponentNotFound(f"No component with unique id {context.unique_id} was found"))) 
+        return self._schedule_task(component.func, context)
 
     async def run_component_command(self, context):
-        """Runs a component command."""
-        component = self.container.components.get(context.ucid, None)
+        component = self.__container.components.get(context.unique_id, None)
         if component is None:
-            raise ValueError(f"Component {context.ucid} not found.")
-
-        context.parent_context = component[2]
-
-        if component[1] is not None:
-            epoch = datetime.fromtimestamp(0)
-            time_difference = (datetime.utcnow() - epoch).total_seconds()
-            if datetime.fromtimestamp(time_difference) > component[1]:
-                await context.callback('This component has timed out. Using this component again will result in an error.', ephemeral=True)
-                await context.parent_context.message.disable_component(context.ucid)
-                del self.container.components[context.ucid]
-                return
-
-        coro = component[0]
-
-        try:
-            await coro(context)
-            if component[3]:
-                await context.parent_context.message.disable_component(context.ucid)
-            del self.container.components[context.ucid]
-        except Exception:
-            traceback.print_exc()
-
-# ------- Connection -------
-
-    async def before_login(self):
-        # Build socket headers
-        self.headers = {"Authorization": f"Bot {self.__token}"}
-        self.session = aiohttp.ClientSession()
-        self.user = User(await (await self.session.get('https://discord.com/api/v8/users/@me', headers=self.headers)).json())
-
+            t =  asyncio.create_task(self.on_error(context.unique_id, ComponentNotFound(f"No component with unique_id {context.unique_id} was found")))
 
     async def connect(self):
-        """
-        Establishes the connection to the Discord gateway.
-        """
-        await self.before_login()
-        async with self.session.ws_connect("wss://gateway.discord.gg/") as connection:
-            self.__gateway = connection
-            async for message in self.__gateway:
+        await self._before_connect()
+        async with self.session.ws_connect('wss://gateway.discord.gg/') as gateway:
+            async for message in gateway:
+                self.__gateway = gateway
                 msg = json.loads(message.data)
-                op, t, d = msg["op"], msg["t"], msg["d"]
-
+                op, t, d = msg['op'], msg['t'], msg['d']
+                
                 if self.__handler:
                     self.__handler.tick()
 
-                try:
-                    if op == utils.HELLO:
-                        await self.__gateway.send_json(
+                match op:
+                    case utils.HELLO:
+                        await gateway.send_json(
                             {
                                 "op": utils.IDENTIFY,
                                 "d": {
@@ -262,83 +242,84 @@ class Socket(object):
                         )
 
                         self.__handler = MaintainSocketAlive(socket=self, interval=d['heartbeat_interval'])
-                        await self.__gateway.send_json(self.__handler.payload())
+                        await gateway.send_json(self.__handler.payload())
                         self.__handler.start()
-
-                    elif op == utils.HEARTBEAT:
+                        
+                    case utils.HEARTBEAT:
                         try:
                             if self.__handler:
-                                await self.__gateway.send_json(self.__handler.payload())
+                                await gateway.send_json(self.__handler.payload())
                         except Exception:
                             traceback.print_exc()
 
-                    elif op == utils.HEARTBEAT_ACK:
+                    case utils.HEARTBEAT_ACK:
                         if self.__handler:
                             self.__handler.ack()
 
-                    elif t == 'INTERACTION_CREATE':
-                        if d['type'] == 2: # Slash command has been invoked
-                            d['injected'] = {"type": utils.SLASH}
-                            context = Context(self, d)
-                            await self.run_command(context)
-                        elif d['type'] == 3: # Component interaction
-                            if d['data']['component_type'] == 3: # Select menu was used
-                                context = SelectMenuContext(self, d)
-                            elif d['data']['component_type'] == 2: # Button was used
-                                context = ButtonContext(self, d)
+                match t:
+                    case 'INTERACTION_CREATE':
+                        if d['type'] == 2:
+                            self.dispatch_command(d)
+                        elif d['type'] == 3:
+                            if d['data']['component_type'] == 2:
+                                await self.run_component_command(ButtonContext(self.__http, d))
 
-                            await self.run_component_command(context)
-                    else:
-                        if t is not None:
-                            listeners = self.container.events.get(t.lower(), None)
-                            if listeners is not None:
-                                for coro in listeners:
-                                    # Check if it needs args
-                                    f = inspect.signature(coro)
-                                    if len(f.parameters) > 0:
-                                        await coro(d)
-                                    else:
-                                        await coro()
+                if t is not None:
+                    listeners = self.__container.events.get(t.lower(), None)
+                    if listeners is not None:
+                        for listener in listeners:
+                            if len((inspect.signature(listener.func)).parameters) > 0:
+                                d['event_name'] = t.lower()
+                                self._schedule_task(listener.func, d)
+                            else:
+                                self._schedule_task(listener.func)
 
-                except Exception:
-                    traceback.print_exc()
+                    try:
+                        listener = self.__getattribute__('on_' + t.lower())
+                        if len(inspect.signature(listener).parameters) > 0:
+                            self._schedule_task(listener, d)
+                        else:
+                            self._schedule_task(listener)
+                    except AttributeError:
+                        pass
 
-# ------- Running -------
+    def add_extension(self, path_to_extension: str):
+        """
+            Loads an extension into the socket.
+
+            ```
+            import discsocket
+            import pathlib
+
+            socket = discsocket.Socket()
+
+            for ext in [f'{p.parent}.{p.stem} for p in pathlib.Path('extensions').glob('*.py)]:
+                socket.add_extension(ext)
+            ```
+        """
+        
+        extension = importlib.import_module(path_to_extension)
+        func = getattr(extension, 'init_ext')
+
+        func(self)
+
+    def add_ext(self, ext):
+        attrs = ext._insert()
+        for attr in attrs:
+            if isinstance(attr, Command):
+                self.__container.add_command(attr)
+            elif isinstance(attr, Event):
+                self.__container.add_event(attr)
 
     def run(self, token: str):
         for _type in ['events', 'commands']:
             if len(self.unchecked_decorators[_type]) > 0:
                 for item in self.unchecked_decorators[_type]:
                     if isinstance(item, Event):
-                        self.container.add_event(item)
+                        self.__container.add_event(item)
                     elif isinstance(item, Command):
-                        self.container.add_command(item)
+                        self.__container.add_command(item)
 
         self.__token = token
         self.loop.create_task(self.connect())
         self.loop.run_forever()
-
-    def add_extension(self, path_to_extension):
-        """
-        Adds an extension to the socket.
-        Example:
-        ```
-        import pathlib
-        import discsocket
-
-        socket = discsocket.Socket()
-
-        for ext in pathlib.Path('name_of_folder_with_extensions').glob('*.py'):
-            socket.add_extension(ext)
-        ```
-        """
-        extension = importlib.import_module(path_to_extension)
-        for name in dir(extension):
-            attr = getattr(extension, name)
-
-            if isinstance(attr, Command):
-                self.container.add_command(attr)
-            elif isinstance(attr, Event):
-                self.container.add_event(attr)
-            else:
-                pass

@@ -23,7 +23,7 @@ class Message:
         await self.__socket.session.patch(f"https://discord.com/api/v8/channels/{self.channel_id}/messages/{self.id}", json=self.raw, headers=self.__socket.headers)
         await self.__rebuild()
 
-    async def disable_all_components(self):
+    async def disable_all_Components(self):
         for action_row in self.components:
             for component in action_row['components']:
                 component['disabled'] = True
@@ -40,6 +40,12 @@ class Message:
         
         await self.__socket.session.patch(f"https://discord.com/api/v8/channels/{self.channel_id}/messages/{self.id}", json=self.raw, headers=self.__socket.headers)
         await self.__rebuild()
+
+    async def delete(self):
+        await self.__socket.session.delete(f"https://discord.com/api/v8/channels/{self.channel_id}/messages/{self.id}", headers=self.__socket.headers)
+
+    async def fetch_reactions(self):
+        return 
 
     async def __rebuild(self):
         message = await self.__socket.session.get(f"https://discord.com/api/v8/channels/{self.channel_id}/messages/{self.id}", headers=self.__socket.headers)

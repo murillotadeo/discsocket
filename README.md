@@ -20,20 +20,74 @@ async def ready():
  
 socket.run('token')
 ```
-# Extensions (Cogs)
-If you're familiar with discord.py then you know about cogs. However in discsockets extensions don't inherit from a cog class.
 
+or if you want to make the bot function as a class
 ```py
 import discsocket
 
-@discsocket.command('boop', 1)
-async def boop_command(ctx):
-    await ctx.callback('https://tenor.com/view/boop-gif-18601298')
+class Socket(discsocket.Socket):
+    def __init__(self):
+        super().__init__(gateway_version=8)
 
+    # Events in a class structure won't require a decorator
+    # and instead follow the 'on_' + gateway_event format
+
+    async def on_ready(self):
+        print(f"{self.user.username} is online")
+
+if __name__ == '__main__':
+    Socket().run('token')
 ```
-Lets pretend that the file is called boop.py and is in a folder called extensions
+# Extensions
+Extensions work to separate your code into different files so it is not all in a single file 
 
 ```py
-# It would be loaded into the client like this
-socket.add_extension('extensions.boop')
+import discsocket
+from discsocket import ext
+
+class Boop(ext.Extension):
+    def __init__(self, socket):
+        self.socket = socket
+
+    # Example of a command within an extension
+    @ext.Extension.command('boop', discsocket.utils.SLASH)
+    async def boop(self, context: discsocket.models.BaseContext):
+        await context.callback(content='boop!')
+
+    # Example of a listener within an extension
+    @ext.Extension.listener('message_create')
+    async def message(self, message):
+        print(message['content'])
+
+def init_ext(socket):
+    socket.add_ext(Boop(socket))
 ```
+
+As an example, the above extension is in a folder called 'extensions'
+
+```py
+
+import discsocket
+import pathlib
+
+class Socket(discsocket.Socket):
+    def __init__(self):
+        super().__init__(gateway_version=8)
+        self.load()
+
+    def load(self):
+        for ext in [f'{p.parent}.{p.stem}' for p in pathlib.Path('extensions').glob('*.py')]:
+            try:
+                self.add_extension(ext)
+            except Exception as e:
+                print(f"Failed to load {ext}.\n-> {e}")
+            else:
+                print(f"Loaded {ext}")
+
+    async def on_ready(self):
+        print(f"{self.user.username} is online")
+
+if __name__ == '__main__':
+    Socket().run('token')
+```
+    
