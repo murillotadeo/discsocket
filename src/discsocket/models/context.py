@@ -24,9 +24,13 @@ class BaseContext:
         self.invoked_by = User(self.raw['member']['user'])
         self.callback_url = self.__http.build_url(f'interactions/{self.id}/{self.token}/callback')
 
-    async def callback(self, _type: int = utils.CHANNEL_WITH_SOURCE, content: str = '', embeds: list[Embed] = [], embed: Embed = None, components: list[ActionRow] = [], ephemeral: bool = False):
-        if len(embeds) > 0 and embed is not None:
+    async def callback(self, content: str = '', embeds: list[Embed] = [], embed: Embed = None, components: list[ActionRow] = [], ephemeral: bool = False, _type: int = utils.CHANNEL_WITH_SOURCE) -> Message:
+        if len(list(embeds)) > 0 and embed is not None:
             _embeds = embeds.insert(0, embed)
+        
+        elif embed is not None and len(list(embeds)) == 0:
+            _embeds = [embed]
+
         else:
             _embeds = embeds
 
@@ -39,8 +43,34 @@ class BaseContext:
             }
         }
 
+        if ephemeral:
+            response_json['data']['flags'] = 64
+
         await self.__http.make_request('POST', f"interactions/{self.id}/{self.token}/callback", response_json)
         self.message = Message(self.__http, await self.__http.make_request('GET', f"webhooks/{self.raw['application_id']}/{self.token}/messages/@original"))
+        return self.message
+
+    async def follow_up(self, content: str = '', embeds: list[Embed] = [], embed: Embed = None, components: list[ActionRow] = [], ephemeral: bool = False) -> Message:
+        _embeds = []
+        if len(list(embeds)) > 0 and embed is not None:
+            _embeds = embeds.insert(0, embed)
+        elif embed is not None and len(list(embeds)) == 0:
+            _embeds = [embed]
+        else:
+            _embeds = embeds
+
+        message_json = {
+            "content": content,
+            "embeds": [emb.build() for emb in _embeds if isinstance(emb, Embed)],
+            "components": [ar.base for ar in components if isinstance(ar, ActionRow)]
+        }
+
+        # Will not work if original interaction was deferred
+        if ephemeral:
+            message_json['flags'] = 64
+
+        self.message  = Message(self.__http, await self.__http.make_request("POST", f"webhooks/{self.raw['application_id']}/{self.token}", message_json))
+        return self.message
         
 
 class SelectMenuContext(BaseContext):
@@ -49,7 +79,7 @@ class SelectMenuContext(BaseContext):
         self.unique_id = self.raw['data']['custom_id']
         self.values = self.raw['data']['values']
         self.used_by = User(self.raw['member']['user'])
-        self.invoked_by = User(data['message']['interactions']['user'])
+        self.invoked_by = User(data['message']['interaction']['user'])
 
 class ButtonContext(BaseContext):
     def __init__(self, http_client, data):

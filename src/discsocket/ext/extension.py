@@ -46,9 +46,12 @@ class Extension:
     def _insert(self):
         objects = []
         for attribute in [attr[1] for attr in inspect.getmembers(self, inspect.iscoroutinefunction) if not attr[0].startswith('__') and not attr[0].endswith('__')]:
-            if attribute.__ext_command__:
-                obj = Command(attribute.__command_data__[0], attribute, attribute.__command_data__[1])
-            elif attribute.__ext_listener__:
-                obj = Event(attribute.__listener_name__, attribute)
-            objects.append(obj)
+            try:
+                if attribute.__ext_command__:
+                    obj = Command(attribute.__command_data__[0], attribute, attribute.__command_data__[1])
+                elif attribute.__ext_listener__:
+                    obj = Event(attribute.__listener_name__, attribute)
+                objects.append(obj)
+            except AttributeError:
+                pass
         return objects

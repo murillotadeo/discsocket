@@ -1,6 +1,6 @@
 from .socket import Socket
 from .embed import Embed
-from .decorators import event, command
 
+from .client import Client
 from . import utils
 from . import models

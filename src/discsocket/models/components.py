@@ -18,17 +18,10 @@ class ButtonStyle:
     LINK = 5
 
 class Button:
-    def __init__(self, custom_id, style: int = ButtonStyle.PRIMARY, label: str = '', url: str = None, emoji: dict = None, disabled: bool = False, timeout: float = 0.0, is_single_use: bool = False):
+    def __init__(self, custom_id, style: int = ButtonStyle.PRIMARY, label: str = '', url: str = None, emoji: dict = None, disabled: bool = False):
         self.base = {"type": 2, "style": style, "label": label, "custom_id": custom_id, "disabled": disabled}
-        self.timeout = timeout
-        self.singe_use = is_single_use
-
         if emoji is not None:
             self.base['emoji'] = emoji
         if style == ButtonStyle.LINK and url is not None:
             self.base['url'] = url
 
-    def __raw_data__(self):
-        raw = self.base
-        raw['timeout'] = self.timeout
-        raw['single_use'] = self.singe_use

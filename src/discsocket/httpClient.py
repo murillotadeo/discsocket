@@ -6,7 +6,7 @@ class HttpRequestError(Exception):
 
 
 class HTTPClient:
-    def __init__(self, client_session: aiohttp.BaseConnector, client_headers, api_gateway_version=8):
+    def __init__(self, client_session: aiohttp.BaseConnector, client_headers, api_gateway_version=10):
         self.base = f'https://discord.com/api/v{api_gateway_version}/'
         self.session = client_session
         self.headers = client_headers

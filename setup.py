@@ -14,7 +14,7 @@ setup(
         "Issue tracker": "https://github.com/murillotadeo/discsocket/issues",
         "Source": "https://github.com/murillotadeo/discsocket"
     },
-    version="1.1.0",
+    version="1.1.6",
     package_dir={'': 'src'},
     packages=setuptools.find_packages('src'),
     license="MIT",
